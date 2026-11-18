@@ -1,7 +1,9 @@
 name: sreda
 services:
   portal:
-    build: .
+    build:
+      context: .
+      target: site
     restart: unless-stopped
     ports:
       - "${SREDA_BIND:-127.0.0.1}:${SREDA_PORT:-8096}:80"
@@ -11,3 +13,19 @@ services:
       timeout: 3s
       retries: 3
       start_period: 2s
+  metrics:
+    build:
+      context: .
+      target: metrics
+    restart: unless-stopped
+    volumes:
+      - metrics-data:/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8000/api/metrics').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 2s
+
+volumes:
+  metrics-data:

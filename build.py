@@ -53,6 +53,7 @@ def sidebar(catalog, section_id, is_catalog):
 def page(title, description, catalog, main, *, section_id=None, is_catalog=False):
     document_title = PORTAL if is_catalog else f"{title} — {PORTAL}"
     script = '  <script src="/assets/catalog.js" defer></script>\n' if is_catalog else ""
+    metrics_script = '  <script src="/assets/metrics.js" defer></script>\n' if section_id else ""
     return f"""<!doctype html>
 <html lang="ru">
 <head>
@@ -61,7 +62,7 @@ def page(title, description, catalog, main, *, section_id=None, is_catalog=False
   <meta name="description" content="{escape(description)}">
   <title>{escape(document_title)}</title>
   <link rel="stylesheet" href="/assets/site.css">
-{script}</head>
+{script}{metrics_script}</head>
 <body>
   <a class="skip-link" href="#main">Перейти к содержанию</a>
   {sidebar(catalog, section_id, is_catalog)}
@@ -73,17 +74,28 @@ def page(title, description, catalog, main, *, section_id=None, is_catalog=False
 """
 
 
-def render_section(section):
-    cards = "\n".join(
-        f"""<li>
-          <a class="card" href="{article['url']}">
-            <h3>{escape(article['title'])}</h3>
+def render_card(article):
+    title = escape(article["title"])
+    url = article["url"]
+    slug = MATERIAL_URL.fullmatch(url)["slug"]
+    return f"""<li class="card" data-material="{slug}">
+          <a class="card-link" href="{url}">
+            <h3>{title}</h3>
             <span class="card-arrow" aria-hidden="true">→</span>
             <p>{escape(article['description'])}</p>
           </a>
+          <div class="card-metrics">
+            <button class="helpful-button" type="button" aria-pressed="false" disabled>
+              Было полезно <span class="helpful-count">—</span>
+            </button>
+            <span class="views">Просмотры <span class="view-count">—</span></span>
+          </div>
+          <p class="card-feedback" role="status"></p>
         </li>"""
-        for article in section["articles"]
-    )
+
+
+def render_section(section):
+    cards = "\n".join(render_card(article) for article in section["articles"])
     section_id = section["id"]
     return f"""<section class="catalog-section" id="{section_id}" tabindex="-1"
         aria-labelledby="heading-{section_id}">
@@ -110,7 +122,7 @@ def render_article(article, section):
     body = render_markdown(ROOT / "content" / f"{slug}.md")
     return f"""<div class="reading">
       <a class="back-link" href="/#{section['id']}"><span aria-hidden="true">←</span> К каталогу</a>
-      <article class="material">
+      <article class="material" data-material="{slug}">
         <p class="material-section">{escape(section['title'])}</p>
         <h1>{escape(article['title'])}</h1>
         <div class="prose">{body}</div>
@@ -124,6 +136,7 @@ def build():
     index = f"""<header class="catalog-header">
       <h1>{PORTAL}</h1>
       <p>{INTRO}</p>
+      <p class="metrics-notice" role="status"></p>
     </header>
     {sections}"""
     pages = {

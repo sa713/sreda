@@ -1,6 +1,7 @@
 """Check the generated catalogue and material URLs over HTTP."""
 
 import argparse
+import json
 from html import escape
 from html.parser import HTMLParser
 from urllib.error import HTTPError
@@ -52,7 +53,7 @@ def main():
         "Ссылки навигации отличаются от разделов",
     )
     urls = [article["url"] for section in catalog for article in section["articles"]]
-    check([href for css, href in index.links if css == "card"] == urls, "Отличаются ссылки карточек")
+    check([href for css, href in index.links if css == "card-link"] == urls, "Отличаются ссылки карточек")
     for section in catalog:
         for article in section["articles"]:
             url = article["url"]
@@ -72,7 +73,18 @@ def main():
     else:
         raise RuntimeError("Несуществующая страница открылась")
 
-    print(f"HTTP OK: {len(section_ids)} разделов, {len(urls)} страниц, обновление, возврат и 404.")
+    with urlopen(base + "/api/metrics", timeout=10) as response:
+        values = json.load(response)
+    slugs = {MATERIAL_URL.fullmatch(url)["slug"] for url in urls}
+    check(values.keys() == slugs, "Счётчики не соответствуют каталогу")
+    for slug, stats in values.items():
+        check(
+            all(type(stats[key]) is int and stats[key] >= 0 for key in ("views", "helpful"))
+            and type(stats["voted"]) is bool,
+            f"Некорректные счётчики: {slug}",
+        )
+
+    print(f"HTTP OK: {len(section_ids)} разделов, {len(urls)} страниц, обновление, возврат, 404 и счётчики.")
 
 
 if __name__ == "__main__":
