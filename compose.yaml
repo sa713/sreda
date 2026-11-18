@@ -1,0 +1,13 @@
+name: sreda
+services:
+  portal:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${SREDA_BIND:-127.0.0.1}:${SREDA_PORT:-8096}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 2s
